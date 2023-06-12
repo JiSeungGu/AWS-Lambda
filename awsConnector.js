@@ -29,7 +29,7 @@ exports.putItemDDB = function (postId, notificationTriggerUserId, userID, postTi
     const updatedAt = now.toISOString();
         
     const params = {
-        TableName: 'Notification-femnfskddrd3hgtppkwaudtm6q-staging',
+        TableName: '테이블 명',
         Item: {
             id,
             __typename: 'Notification',

@@ -7,11 +7,12 @@ const { queryDDB, putItemDDB } = require('./ddbUtils');
 const { Client } = require('@opensearch-project/opensearch');
 
 // Elasticsearch 클라이언트 생성
+// 현재 노드 동작 안함 .
 const node = 'https://search-keywordsearch-ulbkpha4fhlhyaov6tr2c6ccku.ap-southeast-1.es.amazonaws.com'; // domain host 
 const esClient = new Client({ node : node,
     auth : {
-        username : 'seoulforest',
-        password : 'seoulforestFoever1!'
+        username : 'ID',
+        password : 'PASSWORD'
     }
 });
 
@@ -77,20 +78,18 @@ exports.handler = async (event) => {
                 let userId = hit._source.userId;
                    if (!userIds.has(userId)) { // Set에 userId가 없을 경우에만 처리
                     userIds.add(userId); // Set에 userId 추가
-                //  await queryDDB('User-femnfskddrd3hgtppkwaudtm6q-staging', 'id', hit._source.userId)
+                //  await queryDDB('테이블 명 ', 'id', 유저 아이디 )
                 //   .then(async data => {
                     // console.log(data);
                     // 함수 호출
-                    // console.log('data.Items[0].devicePlatform :',data.Items[0].devicePlatform)
-                    // console.log('data.Items[0].devicePlatform :',data.Items[0].deviceToken)
                     
                     // if(data.Items[0].devicePlatform !== null )
                     //  {
                         // await sendPinpointMessage(
                         //   'd630dc674c2b4abca784823317097f80',
                         //   data.Items[0].deviceToken,
-                        //   '서울숲 ',
-                        //   '키워드 알림 : '+items[i],
+                        //   '알림 title ',
+                        //   '알림 내용 : '+items[i],
                         //   setServiceBasedOnPlatform(data.Items[0].devicePlatform),
                         //   postId.toString()
                         // );

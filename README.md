@@ -1,0 +1,1 @@
+Lambda, PinPoint, OpenSearch, DynamoDB, CloudWatch
