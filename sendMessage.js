@@ -1,5 +1,5 @@
 const AWS = require('aws-sdk');
-AWS.config.update({ region: 'ap-southeast-1' });
+AWS.config.update({ region: 'ap-northeast-2' });
 
 const pinpoint = new AWS.Pinpoint();
 
@@ -38,6 +38,18 @@ async function sendPinpointMessage(
                 Url: postId,
             },
         };
+    } else if (service === 'APNS') {
+        MessageConfiguration = {
+            APNSMessage: {
+                Action: action,
+                Body: message,
+                Priority: priority,
+                SilentPush: silent,
+                Title: title,
+                TimeToLive: ttl,
+                Url: postId,
+            },
+        };
     } else if (service === 'APNS_SANDBOX') {
         MessageConfiguration = {
             APNSMessage: {
@@ -50,7 +62,7 @@ async function sendPinpointMessage(
                 Url: postId,
             },
         };
-    } else if (service === 'BAIDU') {
+    }else if (service === 'BAIDU') {
         MessageConfiguration = {
             BaiduMessage: {
                 Action: action,

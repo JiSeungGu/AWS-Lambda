@@ -1,141 +1,65 @@
+
 const AWS = require('aws-sdk');
-const comprehend = new AWS.Comprehend();
+
+const ddb = new AWS.DynamoDB.DocumentClient();
+const pinpoint = new AWS.Pinpoint();
+const { queryDDB } = require('./ddbUtils');
 const { sendPinpointMessage } = require('./sendMessage');
-// const { queryDDB } = require('./ddbUtils');
-const { queryDDB, putItemDDB } = require('./ddbUtils');
-// const { Client } = require('@elastic/elasticsearch')
-const { Client } = require('@opensearch-project/opensearch');
-
-// Elasticsearch 클라이언트 생성
-// 현재 노드 동작 안함 .
-const node = 'https://search-keywordsearch-ulbkpha4fhlhyaov6tr2c6ccku.ap-southeast-1.es.amazonaws.com'; // domain host 
-const esClient = new Client({ node : node,
-    auth : {
-        username : 'ID',
-        password : 'PASSWORD'
-    }
-});
 
 
-exports.handler = async (event) => {
-   console.log(`EVENT: ${JSON.stringify(event)}`);
-
-   for (const record of event.Records) {
-
-    if(record.eventName === "INSERT") {
-        let userIds = new Set(); // Set 생성
+exports.handler = event => {
+  console.log(`EVENT: ${JSON.stringify(event)}`);
+  for (const record of event.Records) {
+    try {
+    if(record.eventName=='INSERT') {
+    console.log('record.eventID: %j', record.eventID);
+    console.log('record.eventName: %j', record.eventName);
+    console.log('DynamoDB Record: %j', record.dynamodb);
     
-        const notificationTriggerUserId = record.dynamodb.NewImage.userID.S
-        
-        let postTitle = record.dynamodb.NewImage.title.S
-        const postId = record.dynamodb.NewImage.id.S
-        
-        const params = {
-            LanguageCode: 'ko',
-            Text : postTitle
-        };
-        const dynamoData = AWS.DynamoDB.Converter.unmarshall(record.dynamodb.NewImage);
-        console.log('dynamoData :',dynamoData)
-        
-
-        try {
-            let response = await comprehend.detectKeyPhrases(params).promise();
-            let ComprehendType = 'KeyPhrases'
-            if (response.KeyPhrases.length === 0) {
-                console.log('response.KeyPhrases.length가 0이므로 detectEntities를 호출합니다.')
-                response = await comprehend.detectEntities(params).promise();
-                 ComprehendType = 'Entities'
-                if (response.Entities.length ===0 ) {
-                    console.log('response.Entities.length가 0이므로 종료합니다. ')
-                    break;
-                }
-            }
-            console.log(response);
-            // const textList = response.KeyPhrases.map(phrase => phrase.Text).join(', ');
-            let textList = '';
-            textList = getTextList(response,ComprehendType)
+    //PUSH 알림 전송 할 userID추출
+    let userId = record.dynamodb.NewImage.userID
+    let postId = record.dynamodb.NewImage.notificationTargetPostId.S
     
-            console.log('textList :',textList);
-            
-            let items = textList.split(',');
-            console.log('items.length : ',items.length)
-            for(let i = 0; i < items.length; i++){
-            console.log(items[i].trim()); //trim() 함수는 문자열 앞뒤의 공백을 제거합니다.
-            
-            const result = await esClient.search({
-              index: 'opensearchtestindex',
-              _source : ['userId'],
-              body: {
-                query: {
-                  wildcard: {
-                    keyword: `*${items[i]}*`
-                  }
-                }
-              }
-            });
-            console.log(result.body.hits.hits);
-             for (const hit of result.body.hits.hits) {
-                let userId = hit._source.userId;
-                   if (!userIds.has(userId)) { // Set에 userId가 없을 경우에만 처리
-                    userIds.add(userId); // Set에 userId 추가
-                //  await queryDDB('테이블 명 ', 'id', 유저 아이디 )
-                //   .then(async data => {
-                    // console.log(data);
-                    // 함수 호출
-                    
-                    // if(data.Items[0].devicePlatform !== null )
-                    //  {
-                        // await sendPinpointMessage(
-                        //   'd630dc674c2b4abca784823317097f80',
-                        //   data.Items[0].deviceToken,
-                        //   '알림 title ',
-                        //   '알림 내용 : '+items[i],
-                        //   setServiceBasedOnPlatform(data.Items[0].devicePlatform),
-                        //   postId.toString()
-                        // );
-                    await putItemDDB(postId, notificationTriggerUserId,hit._source.userId,postTitle);
-                    console.log('PutItemDDB UserId : ',hit._source.userId)
-                   }
-                    //  }
-                //   })
-                   
-             }
-            }
-            
+    
+    //Json 데이터 Value 추출
+    const userIdString = userId.S;
+    
+    //type에 따른 PushText설정 
+    let PushText = null;
+    if (record.dynamodb.NewImage.type && record.dynamodb.NewImage.type.S) {
+      PushText = getPushText(record.dynamodb.NewImage.type.S,record.dynamodb.NewImage);
+    }    
+    
+    //userID로 endpoint 추출    
+      queryDDB('User-xo6p7e7k7zgz7ntmvpspbwezpy-release', 'id', userIdString)
+      .then(data => {
+        console.log(data);
+        // 함수 호출
+        console.log('data.Items[0].devicePlatform :',data.Items[0].devicePlatform)
+        console.log('data.Items[0].devicePlatform :',data.Items[0].deviceToken)
         
-            
-        } catch (err) {
-            console.error(err);
-            const message = `Error processing text: ${err.message}`;
-            console.error(message);
-            throw new Error(message);
-        }
-    }else { 
-        console.log("EVENT_NAME 형식이 INSERT가 아니므로 종료합니다.")
-        break;   
+        if(data.Items[0].devicePlatform !== null )
+         {
+            sendPinpointMessage(
+              '4f13009b5f0e4729b3d667d8b3af3038',
+              data.Items[0].deviceToken,
+              '서울숲 ',
+              PushText,
+              setServiceBasedOnPlatform(data.Items[0].devicePlatform),
+              postId
+            );
+         }
+        console.log('메시지 내용 :',PushText)
+      })
+      .catch(err => { 
+        console.error("Unable to read item. Error JSON: ", JSON.stringify(err, null, 2));
+      });
+    
+  };
+    } catch (error) {
+      console.error(`Error processing record ${JSON.stringify(record)}: ${error.message}`);
     }
-   }
-   console.log("****** AWS 키워드 알림 기능 종료 ******")
-   
-}
-function getTextList(response,ComprehendType) {
-    let textList = '';
-    if (ComprehendType === 'KeyPhrases') {
-    response.KeyPhrases.forEach((phrase, index) => {
-        textList += phrase.Text;
-        if (index !== response.KeyPhrases.length - 1) {
-            textList += ',';
-          }
-    });
-    } else {
-       response.Entities.forEach((phrase, index) => {
-        textList += phrase.Text;
-    if (index !== response.KeyPhrases.length - 1) {
-        textList += ',';
-      }
-    }); 
-    }
-    return textList
+  } 
 }
 function setServiceBasedOnPlatform(devicePlatform) {
     let service;
@@ -152,4 +76,22 @@ function setServiceBasedOnPlatform(devicePlatform) {
     }
 
     return service;
+}
+function getPushText(notificationType,message) {
+  switch(notificationType) {
+    case 'NEW_COMMENT':
+      return message.message.S;
+    case 'NEW_POSTLIKE':
+      return '누군가 내 게시물을 좋아합니다.';
+    case 'NEW_REPLY':
+      return message.message.S;
+    case 'NEW_COMMENTLIKE':
+      return '누군가 내 댓글을 좋아합니다.';
+    case 'NEW_REPLYLIKE':
+      return '누군가 내 답글을 좋아합니다.';
+    case 'NEW_KEYWORD':
+      return message.message.S;
+    default:
+      return '알 수 없는 알림 유형입니다.';
+  }
 }

@@ -1,48 +1,30 @@
 const AWS = require('aws-sdk');
-const ddb = new AWS.DynamoDB.DocumentClient();
-const uuid = require('uuid');
+const { Client, Connection } = require('@opensearch-project/opensearch');
+const { defaultProvider } = require("@aws-sdk/credential-provider-node");
+const aws4 = require("aws4");
+const host = 'https://search-keywordsearch-ulbkpha4fhlhyaov6tr2c6ccku.ap-southeast-1.es.amazonaws.com'; 
 
-exports.queryDDB = function (tableName, keyName, keyValue) {
-  const params = {
-    TableName: tableName,
-    // ProjectionExpression을 사용하면 원하는 컬럼만 출력가능하다, 물론 생략하면 전부 출력
-      // ProjectionExpression="컬럼",
-      //기본 Index를 사용하므로 따로 작성하지 않음, 추가 필요시 Index 생성후 기입
-    // IndexName : 'byUser',
-    KeyConditionExpression: '#key = :value',
-    ExpressionAttributeNames: {
-      '#key': keyName,
-    },
-    ExpressionAttributeValues: {
-      ':value': keyValue,
-    },
+const createAwsConnector = (credentials, region) => {
+  class AmazonConnection extends Connection {
+      buildRequestObject(params) {
+    const request = super.buildRequestObject(params);
+    request.service = 'es';
+    request.region = 'ap-southeast-1';
+    request.headers = request.headers || {};
+    request.headers['host'] = request.hostname;
+      return aws4.sign(request, credentials);
+      }
+  }
+  return {
+      Connection: AmazonConnection
   };
-
-  return ddb.query(params).promise();
 };
+const getClient = async () => {
+  const credentials = await defaultProvider()();
+  return new Client({
+      ...createAwsConnector(credentials, 'ap-southeast-1'),
+      node: host,
+  });
+}
 
-exports.putItemDDB = function (postId, notificationTriggerUserId, userID, postTitle) {
-    //Notification Table Insert용 데이타
-    const id = uuid.v4(); // generates a unique id
-    const now = new Date();
-    const createdAt = now.toISOString();
-    const updatedAt = now.toISOString();
-        
-    const params = {
-        TableName: '테이블 명',
-        Item: {
-            id,
-            __typename: 'Notification',
-            createdAt,
-            isRead: 'false',
-            message : postTitle,
-            notificationTargetPostId: postId,
-            notificationTriggerUserId: notificationTriggerUserId,
-            type: 'NEW_KEYWORD',
-            updatedAt,
-            userID: userID
-        }
-    };
-
-    return ddb.put(params).promise();
-};
+module.exports = getClient;

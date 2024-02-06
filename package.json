@@ -1,0 +1,31 @@
+{
+  "name": "awspush",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "aws4": "^1.12.0",
+    "bowser": "^2.11.0",
+    "debug": "^4.3.4",
+    "hpagent": "^0.1.2",
+    "ms": "^2.1.3",
+    "secure-json-parse": "^2.7.0",
+    "shell-quote": "^1.8.1",
+    "tslib": "^2.5.2",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JiSeungGu/AWS-Lambda.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/JiSeungGu/AWS-Lambda/issues"
+  },
+  "homepage": "https://github.com/JiSeungGu/AWS-Lambda#readme"
+}
